@@ -23,9 +23,8 @@ jobs:
 
       - name: Generate Android project structure
         run: |
-          # Create a temp project to get android/ folder, then restore our files
-          rm -rf android  # Remove existing android folder
-          mkdir -p assets  # Create assets dir (pubspec references it)
+          rm -rf android
+          mkdir -p assets
           mv pubspec.yaml pubspec.yaml.bak
           mv lib lib.bak
           flutter create --platforms android --org com.babytracker baby_tracker_temp
@@ -34,14 +33,28 @@ jobs:
           mv lib.bak lib
           mv pubspec.yaml.bak pubspec.yaml
 
-      - name: Fix Kotlin version for Android dependencies compatibility
+      - name: Fix Kotlin version in generated files
         run: |
-          # Upgrade Kotlin version to fix compatibility with newer dependencies
-          # Update android/build.gradle
-          sed -i 's/kotlin_version = .*/kotlin_version = "1.9.22"/' android/build.gradle
-          # Update android/settings.gradle - change the plugins block kotlin version
-          sed -i 's/"org.jetbrains.kotlin.android".*/"org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
-          echo "Kotlin version updated"
+          # Fix android/settings.gradle - update Kotlin plugin version in plugins block
+          python3 << 'PYEOF'
+          import re
+          
+          with open('android/settings.gradle', 'r') as f:
+            content = f.read()
+          
+          # Update Kotlin plugin version in plugins block
+          content = re.sub(
+            r'(id\s+["\']org\..jetbrains\.kotlin\.android["\'])\s+version\s+["\'][^"\']+["\']',
+            r'\1 version "1.9.22"',
+            content
+          )
+          
+          with open('android/settings.gradle', 'w') as f:
+            f.write(content)
+          
+          print("settings.gradle updated")
+          print(content[:500])
+          PYEOF
 
       - name: Install dependencies
         run: |
