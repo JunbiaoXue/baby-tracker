@@ -37,9 +37,10 @@ jobs:
       - name: Fix Kotlin version for Android dependencies compatibility
         run: |
           # Upgrade Kotlin version to fix compatibility with newer dependencies
+          # Update android/build.gradle
           sed -i 's/kotlin_version = .*/kotlin_version = "1.9.22"/' android/build.gradle
-          sed -i 's/    implementation.*:kotlin-stdlib-jdk7:.*/    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.22"/' android/app/build.gradle 2>/dev/null || true
-          sed -i 's/    implementation.*:kotlin-stdlib-jdk8:.*/    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22"/' android/app/build.gradle 2>/dev/null || true
+          # Update android/settings.gradle - change the plugins block kotlin version
+          sed -i 's/"org.jetbrains.kotlin.android".*/"org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
           echo "Kotlin version updated"
 
       - name: Install dependencies
