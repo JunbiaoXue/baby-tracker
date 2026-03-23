@@ -35,52 +35,23 @@ jobs:
 
       - name: Override Kotlin in build configuration
         run: |
-          # Add Kotlin version override to android/app/build.gradle
-          # This forces the kotlin compiler to use a specific version
-          if ! grep -q "kotlinOptions" android/app/build.gradle; then
-            # Add kotlinOptions block after android { }
-            sed -i '/android {/a\
-            \
-            kotlinOptions {\
-                jvmTarget = "17"\
-            }' android/app/build.gradle
-          fi
-          
-          # Also add kotlinstdlib exclusion in build.gradle
-          if ! grep -q "configurations.all" android/build.gradle; then
-            cat >> android/build.gradle << 'EOF'
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty("android")) {
-            project.android {
-                if (namespace == null) {
-                    namespace = project.group.toString()
-                }
-            }
-        }
-    }
-}
-EOF
-          fi
-          
-          # Add JVM args to gradle.properties to skip Kotlin metadata check
-          cat >> android/gradle.properties << 'EOF'
+          # Add Kotlin compatibility fixes
+          cat > android/gradle.properties << 'EOF'
 org.gradle.jvmargs=-Xmx2048m -Dkotlin.daemon.jvmargs=-Xmx1536m
 android.useAndroidX=true
 android.enableJetifier=true
 kotlin.daemon.jvmargs=-Xmx1536m
-kotlin.jvm.target.validation.mode=warning
+kotlin.jvm.target.validation.mode=ignore
+kotlin.stdlib.default.dependency=false
 EOF
           
-          echo "Build configuration updated"
+          # Also force JVM target in app build.gradle
+          if ! grep -q 'jvmTarget' android/app/build.gradle; then
+            sed -i '/compileOptions/a\        jvmTarget = "17"' android/app/build.gradle
+            sed -i '/kotlinOptions {/a\            jvmTarget = "17"' android/app/build.gradle
+          fi
+          
+          echo "Kotlin configuration updated"
 
       - name: Install dependencies
         run: |
