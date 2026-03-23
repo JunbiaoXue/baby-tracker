@@ -24,6 +24,7 @@ jobs:
       - name: Generate Android project structure
         run: |
           # Create a temp project to get android/ folder, then restore our files
+          rm -rf android  # Remove existing android folder
           mv pubspec.yaml pubspec.yaml.bak
           mv lib lib.bak
           flutter create --platforms android --org com.babytracker baby_tracker_temp
