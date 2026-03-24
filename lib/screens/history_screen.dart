@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 import 'package:intl/intl.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -28,16 +29,19 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('历史记录'),
+        title: Text(ls('history_title')),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: '喂奶'),
-            Tab(text: '换尿布'),
-            Tab(text: '睡眠'),
+          tabs: [
+            Tab(text: ls('feeding')),
+            Tab(text: ls('diaper')),
+            Tab(text: ls('sleep')),
           ],
         ),
         actions: [
@@ -62,7 +66,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             color: Theme.of(context).colorScheme.surface,
             child: Center(
               child: Text(
-                DateFormat('yyyy年MM月dd日').format(_selectedDate),
+                DateFormat('yyyy/MM/dd').format(_selectedDate),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -71,9 +75,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildFeedingHistory(),
-                _buildDiaperHistory(),
-                _buildSleepHistory(),
+                _buildFeedingHistory(l10n),
+                _buildDiaperHistory(l10n),
+                _buildSleepHistory(l10n),
               ],
             ),
           ),
@@ -82,7 +86,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildFeedingHistory() {
+  Widget _buildFeedingHistory(L10nService l10n) {
     final ds = context.watch<DataService>();
     final records = ds.feedingRecords.where((r) =>
       r.time.year == _selectedDate.year &&
@@ -90,7 +94,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       r.time.day == _selectedDate.day
     ).toList();
 
-    if (records.isEmpty) return const Center(child: Text('当日无记录'));
+    if (records.isEmpty) return Center(child: Text(l10n.t('no_records')));
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: records.length,
@@ -114,7 +118,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildDiaperHistory() {
+  Widget _buildDiaperHistory(L10nService l10n) {
     final ds = context.watch<DataService>();
     final records = ds.diaperRecords.where((r) =>
       r.time.year == _selectedDate.year &&
@@ -122,7 +126,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       r.time.day == _selectedDate.day
     ).toList();
 
-    if (records.isEmpty) return const Center(child: Text('当日无记录'));
+    if (records.isEmpty) return Center(child: Text(l10n.t('no_records')));
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: records.length,
@@ -146,7 +150,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildSleepHistory() {
+  Widget _buildSleepHistory(L10nService l10n) {
     final ds = context.watch<DataService>();
     final records = ds.sleepRecords.where((r) =>
       r.startTime.year == _selectedDate.year &&
@@ -154,7 +158,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       r.startTime.day == _selectedDate.day
     ).toList();
 
-    if (records.isEmpty) return const Center(child: Text('当日无记录'));
+    if (records.isEmpty) return Center(child: Text(l10n.t('no_records')));
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: records.length,
@@ -166,8 +170,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               backgroundColor: Colors.purple.withOpacity(0.1),
               child: const Icon(Icons.bedtime, color: Colors.purple),
             ),
-            title: Text(r.isOngoing ? '睡眠中' : '睡眠'),
-            subtitle: Text('${DateFormat('HH:mm').format(r.startTime)}${r.endTime != null ? ' - ${DateFormat('HH:mm').format(r.endTime!)}' : ''}  ${r.durationStr}'),
+            title: Text(r.isOngoing ? l10n.t('sleeping') : l10n.t('sleep')),
+            subtitle: Text(
+              '${DateFormat('HH:mm').format(r.startTime)}${r.endTime != null ? ' - ${DateFormat('HH:mm').format(r.endTime!)}' : ''}  ${r.durationStr}',
+            ),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
               onPressed: () => ds.deleteSleep(r.id),

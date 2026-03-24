@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 import 'feeding_screen.dart';
 import 'diaper_screen.dart';
 import 'supplement_screen.dart';
@@ -21,9 +22,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
+  String _ls(String key) => context.read<L10nService>().t(key);
+  String _lw(String key) => context.watch<L10nService>().t(key);
+
   @override
   Widget build(BuildContext context) {
     final ds = context.watch<DataService>();
+    final l10n = context.watch<L10nService>();
     final stats = ds.todayStats();
     final ongoingSleep = ds.ongoingSleep;
     final supplement = ds.todaySupplement();
@@ -40,17 +45,20 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: '首页'),
-          NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: '历史'),
-          NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: '统计'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: '设置'),
+        destinations: [
+          NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: _lw('home')),
+          NavigationDestination(icon: const Icon(Icons.history_outlined), selectedIcon: const Icon(Icons.history), label: _lw('history')),
+          NavigationDestination(icon: const Icon(Icons.bar_chart_outlined), selectedIcon: const Icon(Icons.bar_chart), label: _lw('stats')),
+          NavigationDestination(icon: const Icon(Icons.settings_outlined), selectedIcon: const Icon(Icons.settings), label: _lw('settings')),
         ],
       ),
     );
   }
 
   Widget _buildMainPage(DataService ds, Map stats, dynamic ongoingSleep, dynamic supplement) {
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -65,53 +73,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(ds.babyName, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                 const Spacer(),
                 if (ds.babyBirthday != null) ...[
-                  Text('${_calcAge(ds.babyBirthday!)}', style: Theme.of(context).textTheme.bodySmall),
+                  Text(_calcAge(ds.babyBirthday!, l10n), style: Theme.of(context).textTheme.bodySmall),
                 ],
               ],
             ),
             const SizedBox(height: 4),
-            Text('今日${_today()}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+            Text('${ls('today')} ${_today(l10n)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
             const SizedBox(height: 16),
 
             // 今日总结卡片
-            _buildSummaryCard(stats, ongoingSleep, supplement),
+            _buildSummaryCard(stats, ongoingSleep, supplement, l10n),
             const SizedBox(height: 16),
 
             // 快捷记录
-            Text('快捷记录', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(ls('quick_records'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            _buildQuickButtons(context),
+            _buildQuickButtons(context, l10n),
             const SizedBox(height: 16),
 
             // 近期记录预览
-            _buildRecentFeeding(ds),
+            _buildRecentFeeding(ds, l10n),
             const SizedBox(height: 12),
-            _buildRecentDiapers(ds),
+            _buildRecentDiapers(ds, l10n),
           ],
         ),
       ),
     );
   }
 
-  String _calcAge(DateTime birthday) {
+  String _calcAge(DateTime birthday, L10nService l10n) {
     final now = DateTime.now();
     int months = (now.year - birthday.year) * 12 + now.month - birthday.month;
     if (now.day < birthday.day) months--;
     if (months < 0) return '';
     final years = months ~/ 12;
     final m = months % 12;
-    if (years == 0) return '${m}个月';
-    if (m == 0) return '${years}岁';
-    return '${years}岁${m}个月';
+    final yk = l10n.t('years');
+    final mk = l10n.t('months');
+    if (years == 0) return '$m$mk';
+    if (m == 0) return '$years$yk';
+    return '$years$yk${m}$mk';
   }
 
-  String _today() {
+  String _today(L10nService l10n) {
     final now = DateTime.now();
-    final weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
-    return '${now.month}月${now.day}日 ${weekdays[now.weekday % 7]}';
+    final weekdays = [l10n.t('sun'), l10n.t('mon'), l10n.t('tue'), l10n.t('wed'), l10n.t('thu'), l10n.t('fri'), l10n.t('sat')];
+    return '${now.month}/${now.day} ${weekdays[now.weekday % 7]}';
   }
 
-  Widget _buildSummaryCard(Map stats, dynamic ongoingSleep, dynamic supplement) {
+  Widget _buildSummaryCard(Map stats, dynamic ongoingSleep, dynamic supplement, L10nService l10n) {
+    String ls(String k) => l10n.t(k);
+    final feedingCount = stats['feedingCount'] ?? 0;
+    final totalBottleMl = stats['totalBottleMl'] ?? 0;
+    final diaperCount = stats['diaperCount'] ?? 0;
+    final totalSleepMinutes = stats['totalSleepMinutes'] ?? 0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -119,18 +135,18 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Row(
               children: [
-                _statItem('喂奶', '${stats['feedingCount']}次', Icons.local_drink_outlined, Colors.blue),
-                _statItem('奶量', '${stats['totalBottleMl']}ml', Icons.water_drop, Colors.cyan),
-                _statItem('换尿布', '${stats['diaperCount']}次', Icons.baby_changing_station, Colors.orange),
-                _statItem('睡眠', _formatSleep(stats['totalSleepMinutes']), Icons.bedtime, Colors.purple),
+                _statItem(ls('feeding'), '$feedingCount${ls('times')}', Icons.local_drink_outlined, Colors.blue),
+                _statItem(ls('milk_amount'), '${totalBottleMl}ml', Icons.water_drop, Colors.cyan),
+                _statItem(ls('diaper'), '$diaperCount${ls('times')}', Icons.baby_changing_station, Colors.orange),
+                _statItem(ls('sleep'), _formatSleep(totalSleepMinutes, l10n), Icons.bedtime, Colors.purple),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildSupplementBadge('AD', supplement?.tookAD ?? false),
+                _buildSupplementBadge(ls('ad_vitamin'), supplement?.tookAD ?? false),
                 const SizedBox(width: 8),
-                _buildSupplementBadge('D3', supplement?.tookD3 ?? false),
+                _buildSupplementBadge(ls('d3_vitamin'), supplement?.tookD3 ?? false),
                 const SizedBox(width: 8),
                 if (ongoingSleep != null)
                   Container(
@@ -145,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         const Icon(Icons.bedtime, size: 14, color: Colors.purple),
                         const SizedBox(width: 4),
-                        Text('睡眠中', style: TextStyle(fontSize: 12, color: Colors.purple.shade700)),
+                        Text(ls('sleeping'), style: TextStyle(fontSize: 12, color: Colors.purple.shade700)),
                       ],
                     ),
                   ),
@@ -185,14 +201,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _formatSleep(int minutes) {
-    if (minutes == 0) return '0分钟';
+  String _formatSleep(int minutes, L10nService l10n) {
+    if (minutes == 0) return '0${l10n.t('minutes')}';
     final h = minutes ~/ 60;
     final m = minutes % 60;
-    return h > 0 ? '${h}h${m}m' : '${m}分钟';
+    final hk = l10n.t('hours');
+    final mk = l10n.t('minutes');
+    return h > 0 ? '${h}$hk${m}$mk' : '${m}$mk';
   }
 
-  Widget _buildQuickButtons(BuildContext context) {
+  Widget _buildQuickButtons(BuildContext context, L10nService l10n) {
+    String ls(String k) => l10n.t(k);
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -201,17 +221,18 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisSpacing: 12,
       childAspectRatio: 1.1,
       children: [
-        _quickBtn(context, '🍼 喂奶', Icons.local_drink, Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedingScreen()))),
-        _quickBtn(context, '🧷 换尿布', Icons.baby_changing_station, Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiaperScreen()))),
-        _quickBtn(context, '💊 营养品', Icons.medication, Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplementScreen()))),
-        _quickBtn(context, '😴 睡眠', Icons.bedtime, Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SleepScreen()))),
-        _quickBtn(context, '📏 身高体重', Icons.straighten, Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GrowthScreen()))),
-        _quickBtn(context, '🌟 里程碑', Icons.star, Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MilestoneScreen()))),
+        _quickBtn(context, '🍼 ${ls('feeding')}', Icons.local_drink, Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedingScreen()))),
+        _quickBtn(context, '🧷 ${ls('diaper')}', Icons.baby_changing_station, Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiaperScreen()))),
+        _quickBtn(context, '💊 ${ls('supplement')}', Icons.medication, Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplementScreen()))),
+        _quickBtn(context, '😴 ${ls('sleep')}', Icons.bedtime, Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SleepScreen()))),
+        _quickBtn(context, '📏 ${ls('growth_record')}', Icons.straighten, Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GrowthScreen()))),
+        _quickBtn(context, '🌟 ${ls('milestone')}', Icons.star, Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MilestoneScreen()))),
       ],
     );
   }
 
   Widget _quickBtn(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
+    final parts = label.split(' ');
     return Card(
       elevation: 1,
       child: InkWell(
@@ -222,14 +243,15 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(icon, color: color, size: 28),
             const SizedBox(height: 4),
-            Text(label.split(' ')[1], style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
+            Text(parts.length > 1 ? parts[1] : label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRecentFeeding(DataService ds) {
+  Widget _buildRecentFeeding(DataService ds, L10nService l10n) {
+    String ls(String k) => l10n.t(k);
     final today = ds.todayFeedings().take(3).toList();
     return Card(
       child: Padding(
@@ -240,11 +262,11 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(children: [
               const Icon(Icons.local_drink, size: 18, color: Colors.blue),
               const SizedBox(width: 6),
-              Text('最近喂奶', style: Theme.of(context).textTheme.titleSmall),
+              Text(ls('recent_feeding'), style: Theme.of(context).textTheme.titleSmall),
             ]),
             const Divider(),
             if (today.isEmpty)
-              const Padding(padding: EdgeInsets.all(8), child: Text('今日暂无记录', style: TextStyle(color: Colors.grey)))
+              Padding(padding: const EdgeInsets.all(8), child: Text(ls('no_records_today'), style: const TextStyle(color: Colors.grey)))
             else
               ...today.map((f) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -262,7 +284,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildRecentDiapers(DataService ds) {
+  Widget _buildRecentDiapers(DataService ds, L10nService l10n) {
+    String ls(String k) => l10n.t(k);
     final today = ds.todayDiapers().take(3).toList();
     return Card(
       child: Padding(
@@ -273,11 +296,11 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(children: [
               const Icon(Icons.baby_changing_station, size: 18, color: Colors.orange),
               const SizedBox(width: 6),
-              Text('最近换尿布', style: Theme.of(context).textTheme.titleSmall),
+              Text(ls('recent_diaper'), style: Theme.of(context).textTheme.titleSmall),
             ]),
             const Divider(),
             if (today.isEmpty)
-              const Padding(padding: EdgeInsets.all(8), child: Text('今日暂无记录', style: TextStyle(color: Colors.grey)))
+              Padding(padding: const EdgeInsets.all(8), child: Text(ls('no_records_today'), style: const TextStyle(color: Colors.grey)))
             else
               ...today.map((d) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),

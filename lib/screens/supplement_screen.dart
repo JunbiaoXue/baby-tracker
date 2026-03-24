@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/supplement_record.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 
 class SupplementScreen extends StatefulWidget {
   const SupplementScreen({super.key});
@@ -25,6 +26,8 @@ class _SupplementScreenState extends State<SupplementScreen> {
     }
   }
 
+  String _ls(String key) => context.read<L10nService>().t(key);
+
   Future<void> _save() async {
     final ds = context.read<DataService>();
     await ds.setSupplement(SupplementRecord(
@@ -34,15 +37,18 @@ class _SupplementScreenState extends State<SupplementScreen> {
     ));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已保存！'), duration: Duration(seconds: 1)),
+        SnackBar(content: Text(_ls('saved')), duration: const Duration(seconds: 1)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('营养补充'), centerTitle: true),
+      appBar: AppBar(title: Text(ls('supplement')), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -55,11 +61,11 @@ class _SupplementScreenState extends State<SupplementScreen> {
                   children: [
                     const Icon(Icons.medication, size: 48, color: Colors.green),
                     const SizedBox(height: 12),
-                    const Text('今日营养补充', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(ls('today_supplement'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 20),
                     SwitchListTile(
-                      title: const Text('维生素 AD'),
-                      subtitle: const Text('促进骨骼发育、免疫力'),
+                      title: Text(ls('vitamin_ad')),
+                      subtitle: Text(ls('vitamin_ad_desc')),
                       value: _tookAD,
                       onChanged: (v) => setState(() => _tookAD = v),
                       secondary: CircleAvatar(
@@ -69,8 +75,8 @@ class _SupplementScreenState extends State<SupplementScreen> {
                     ),
                     const Divider(),
                     SwitchListTile(
-                      title: const Text('维生素 D3'),
-                      subtitle: const Text('促进钙吸收、预防佝偻病'),
+                      title: Text(ls('vitamin_d3')),
+                      subtitle: Text(ls('vitamin_d3_desc')),
                       value: _tookD3,
                       onChanged: (v) => setState(() => _tookD3 = v),
                       secondary: CircleAvatar(
@@ -84,7 +90,7 @@ class _SupplementScreenState extends State<SupplementScreen> {
                       child: FilledButton.icon(
                         onPressed: _save,
                         icon: const Icon(Icons.check),
-                        label: const Text('保存'),
+                        label: Text(ls('save')),
                       ),
                     ),
                   ],
@@ -92,15 +98,15 @@ class _SupplementScreenState extends State<SupplementScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('💡 小贴士', style: TextStyle(fontWeight: FontWeight.bold)),
-                    SizedBox(height: 8),
-                    Text('AD 和 D3 通常在宝宝出生后 15 天开始补充，建议在早上喂奶后服用。具体用量请遵医嘱。', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    Text(ls('tip'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text(ls('tip_content'), style: const TextStyle(fontSize: 13, color: Colors.grey)),
                   ],
                 ),
               ),

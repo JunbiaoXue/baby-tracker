@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/milestone_record.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 
 class MilestoneScreen extends StatefulWidget {
   const MilestoneScreen({super.key});
@@ -16,10 +17,11 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
   final _noteController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
 
-  final _presetMilestones = {
-    'milestone': ['第一次微笑', '翻身', '独坐', '爬行', '站立', '迈步走', '叫爸爸妈妈', '长牙', '认人', '认生'],
-    'hospital': ['体检', '就诊', '复查', '用药'],
-    'vaccine': ['疫苗接种'],
+  // Preset milestones - key in code matches translation key prefix
+  final Map<String, List<String>> _presetMilestones = {
+    'milestone': ['first_smile', 'roll_over', 'sit_up', 'crawl', 'stand', 'first_steps', 'first_words', 'teething', 'recognize_people', 'stranger_anxiety'],
+    'hospital': ['checkup', 'visit', 'review', 'medicine'],
+    'vaccine': ['vaccination'],
   };
 
   @override
@@ -28,6 +30,8 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
     _noteController.dispose();
     super.dispose();
   }
+
+  String _ls(String key) => context.read<L10nService>().t(key);
 
   Future<void> _save() async {
     if (_titleController.text.isEmpty) return;
@@ -45,16 +49,18 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
     final ds = context.watch<DataService>();
     final records = ds.milestoneRecords.take(30).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('里程碑 & 备忘'), centerTitle: true),
+      appBar: AppBar(title: Text(ls('milestone')), centerTitle: true),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: records.length + 1,
         itemBuilder: (ctx, index) {
-          if (index == 0) return _buildForm();
+          if (index == 0) return _buildForm(l10n);
           final r = records[index - 1];
           return _buildRecordItem(r, ds);
         },
@@ -62,20 +68,22 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildForm(L10nService l10n) {
+    String ls(String k) => l10n.t(k);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('新增记录', style: Theme.of(context).textTheme.titleMedium),
+            Text(ls('add_record'), style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'milestone', label: Text('🌟 里程碑')),
-                ButtonSegment(value: 'hospital', label: Text('🏥 就医')),
-                ButtonSegment(value: 'vaccine', label: Text('💉 疫苗')),
+              segments: [
+                ButtonSegment(value: 'milestone', label: Text(ls('milestone_tab'))),
+                ButtonSegment(value: 'hospital', label: Text(ls('hospital_tab'))),
+                ButtonSegment(value: 'vaccine', label: Text(ls('vaccine_tab'))),
               ],
               selected: {_category},
               onSelectionChanged: (s) => setState(() => _category = s.first),
@@ -85,20 +93,17 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: (_presetMilestones[_category] ?? []).map((preset) =>
+              children: (_presetMilestones[_category] ?? []).map((presetKey) =>
                 ActionChip(
-                  label: Text(preset, style: const TextStyle(fontSize: 12)),
-                  onPressed: () => _titleController.text = preset,
+                  label: Text(ls(presetKey), style: const TextStyle(fontSize: 12)),
+                  onPressed: () => _titleController.text = ls(presetKey),
                 )
               ).toList(),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: '标题',
-                border: OutlineInputBorder(),
-              ),
+              decoration: InputDecoration(labelText: ls('title'), border: const OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -112,10 +117,10 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
                 if (d != null) setState(() => _selectedDate = d);
               },
               child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: '日期',
-                  border: OutlineInputBorder(),
-                  suffixIcon: Icon(Icons.calendar_today),
+                decoration: InputDecoration(
+                  labelText: ls('date'),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: const Icon(Icons.calendar_today),
                 ),
                 child: Text('${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day}'),
               ),
@@ -124,10 +129,7 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
             TextField(
               controller: _noteController,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: '备注 (可选)',
-                border: OutlineInputBorder(),
-              ),
+              decoration: InputDecoration(labelText: ls('note_optional'), border: const OutlineInputBorder()),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -135,7 +137,7 @@ class _MilestoneScreenState extends State<MilestoneScreen> {
               child: FilledButton.icon(
                 onPressed: _save,
                 icon: const Icon(Icons.check),
-                label: const Text('保存'),
+                label: Text(ls('save')),
               ),
             ),
           ],

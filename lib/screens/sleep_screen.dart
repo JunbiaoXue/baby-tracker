@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/sleep_record.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 
 class SleepScreen extends StatefulWidget {
   const SleepScreen({super.key});
@@ -25,6 +26,8 @@ class _SleepScreenState extends State<SleepScreen> {
       _startTime = ongoing.startTime;
     }
   }
+
+  String _ls(String key) => context.read<L10nService>().t(key);
 
   Future<void> _startSleep() async {
     final ds = context.read<DataService>();
@@ -55,13 +58,25 @@ class _SleepScreenState extends State<SleepScreen> {
     });
   }
 
+  String _fmt(DateTime t) => '${t.month}/${t.day} ${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+
+  String _qualityName(SleepQuality q, L10nService l10n) {
+    switch (q) {
+      case SleepQuality.good: return l10n.t('quality_good');
+      case SleepQuality.normal: return l10n.t('quality_normal');
+      case SleepQuality.crying: return l10n.t('quality_crying');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
     final ds = context.watch<DataService>();
     final records = ds.sleepRecords.where((s) => !s.isOngoing).take(20).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('睡眠记录'), centerTitle: true),
+      appBar: AppBar(title: Text(ls('sleep_record')), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -78,7 +93,7 @@ class _SleepScreenState extends State<SleepScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _isOngoing ? '宝宝正在睡觉 😴' : '宝宝醒着 ☀️',
+                    _isOngoing ? ls('baby_sleeping') : ls('baby_awake'),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   if (_isOngoing && _startTime != null) ...[
@@ -87,8 +102,10 @@ class _SleepScreenState extends State<SleepScreen> {
                       stream: Stream.periodic(const Duration(seconds: 1)),
                       builder: (_, __) {
                         final duration = DateTime.now().difference(_startTime!);
+                        final hk = ls('hours');
+                        final mk = ls('minutes2');
                         return Text(
-                          '已睡 ${duration.inHours}小时${duration.inMinutes % 60}分钟',
+                          '${ls('has_slept')} ${duration.inHours}${hk}${duration.inMinutes % 60}$mk',
                           style: TextStyle(fontSize: 16, color: Colors.purple.shade600),
                         );
                       },
@@ -99,17 +116,17 @@ class _SleepScreenState extends State<SleepScreen> {
                     FilledButton.icon(
                       onPressed: _startSleep,
                       icon: const Icon(Icons.bedtime),
-                      label: const Text('开始记录睡眠'),
+                      label: Text(ls('start_record_sleep')),
                       style: FilledButton.styleFrom(backgroundColor: Colors.purple),
                     )
                   else ...[
-                    const Text('睡眠质量'),
+                    Text(ls('sleep_quality')),
                     const SizedBox(height: 8),
                     SegmentedButton<SleepQuality>(
-                      segments: const [
-                        ButtonSegment(value: SleepQuality.good, label: Text('好')),
-                        ButtonSegment(value: SleepQuality.normal, label: Text('一般')),
-                        ButtonSegment(value: SleepQuality.crying, label: Text('哭闹')),
+                      segments: [
+                        ButtonSegment(value: SleepQuality.good, label: Text(ls('quality_good'))),
+                        ButtonSegment(value: SleepQuality.normal, label: Text(ls('quality_normal'))),
+                        ButtonSegment(value: SleepQuality.crying, label: Text(ls('quality_crying'))),
                       ],
                       selected: {_quality},
                       onSelectionChanged: (s) => setState(() => _quality = s.first),
@@ -118,7 +135,7 @@ class _SleepScreenState extends State<SleepScreen> {
                     FilledButton.icon(
                       onPressed: _endSleep,
                       icon: const Icon(Icons.wb_sunny),
-                      label: const Text('醒来 - 结束睡眠'),
+                      label: Text(ls('wake_up')),
                       style: FilledButton.styleFrom(backgroundColor: Colors.orange),
                     ),
                   ],
@@ -127,10 +144,10 @@ class _SleepScreenState extends State<SleepScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text('历史记录', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(ls('sleep_history'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 8),
           if (records.isEmpty)
-            const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('暂无历史记录')))
+            Card(child: Padding(padding: const EdgeInsets.all(16), child: Text(ls('no_history'))))
           else
             ...records.map((r) => Card(
               child: ListTile(
@@ -138,8 +155,10 @@ class _SleepScreenState extends State<SleepScreen> {
                   backgroundColor: Colors.purple.withOpacity(0.15),
                   child: const Icon(Icons.bedtime, color: Colors.purple),
                 ),
-                title: Text('${_fmt(r.startTime)} 开始'),
-                subtitle: Text('睡眠时长: ${r.durationStr}${r.quality != null ? '  质量: ${_qualityName(r.quality!)}' : ''}'),
+                title: Text('${_fmt(r.startTime)}'),
+                subtitle: Text(
+                  '${ls('sleep_duration')}: ${r.durationStr}${r.quality != null ? '  ${ls('quality')}: ${_qualityName(r.quality!, l10n)}' : ''}',
+                ),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: () => ds.deleteSleep(r.id),
@@ -149,14 +168,5 @@ class _SleepScreenState extends State<SleepScreen> {
         ],
       ),
     );
-  }
-
-  String _fmt(DateTime t) => '${t.month}/${t.day} ${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
-  String _qualityName(SleepQuality q) {
-    switch (q) {
-      case SleepQuality.good: return '好';
-      case SleepQuality.normal: return '一般';
-      case SleepQuality.crying: return '哭闹';
-    }
   }
 }

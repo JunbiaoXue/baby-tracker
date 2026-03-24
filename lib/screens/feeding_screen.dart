@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/feeding_record.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 
 class FeedingScreen extends StatefulWidget {
   const FeedingScreen({super.key});
@@ -26,6 +27,8 @@ class _FeedingScreenState extends State<FeedingScreen> {
     super.dispose();
   }
 
+  String _ls(String key) => context.read<L10nService>().t(key);
+
   Future<void> _save() async {
     final ds = context.read<DataService>();
     final record = FeedingRecord(
@@ -43,109 +46,6 @@ class _FeedingScreenState extends State<FeedingScreen> {
     if (mounted) Navigator.pop(context);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.watch<DataService>();
-    final records = ds.feedingRecords.take(30).toList();
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('喂奶记录'), centerTitle: true),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: records.length + 1,
-        itemBuilder: (context, index) {
-          if (index == 0) return _buildForm();
-          final r = records[index - 1];
-          return _buildRecordItem(r, ds);
-        },
-      ),
-    );
-  }
-
-  Widget _buildForm() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('新增记录', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            // 喂养方式
-            SegmentedButton<FeedingType>(
-              segments: const [
-                ButtonSegment(value: FeedingType.breastDirect, label: Text('亲喂')),
-                ButtonSegment(value: FeedingType.breastBottle, label: Text('母乳瓶喂')),
-                ButtonSegment(value: FeedingType.formula, label: Text('奶粉')),
-              ],
-              selected: {_selectedType},
-              onSelectionChanged: (s) => setState(() => _selectedType = s.first),
-            ),
-            const SizedBox(height: 16),
-
-            if (_selectedType == FeedingType.breastDirect) ...[
-              // 母乳亲喂 - 计时器
-              Row(children: [
-                Text('时长: ${_breastSeconds ~/ 60}分${_breastSeconds % 60}秒',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                if (_isTimerRunning)
-                  FilledButton.icon(
-                    onPressed: () {
-                      setState(() => _isTimerRunning = false);
-                    },
-                    icon: const Icon(Icons.stop),
-                    label: const Text('停止计时'),
-                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                  )
-                else
-                  FilledButton.icon(
-                    onPressed: () => _startTimer(),
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('开始计时'),
-                  ),
-              ]),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () => setState(() { _breastSeconds = 0; _isTimerRunning = false; }),
-                child: const Text('重置'),
-              ),
-            ] else ...[
-              // 瓶喂/奶粉 - 输入量
-              TextField(
-                controller: _mlController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: '喝奶量 (ml)',
-                  border: OutlineInputBorder(),
-                  suffixText: 'ml',
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _noteController,
-              decoration: const InputDecoration(
-                labelText: '备注 (可选)',
-                border: OutlineInputBorder(),
-                hintText: '如：厌奶/呛奶/精神好',
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.check),
-                label: const Text('保存记录'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _startTimer() {
     setState(() => _isTimerRunning = true);
     Future.doWhile(() async {
@@ -154,23 +54,6 @@ class _FeedingScreenState extends State<FeedingScreen> {
       setState(() => _breastSeconds++);
       return _isTimerRunning;
     });
-  }
-
-  Widget _buildRecordItem(FeedingRecord r, DataService ds) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _typeColor(r.type).withOpacity(0.15),
-          child: Icon(_typeIcon(r.type), color: _typeColor(r.type)),
-        ),
-        title: Text(r.typeName),
-        subtitle: Text('${_fmt(r.time)}  ${r.displayAmount}${r.note != null ? '  📝${r.note}' : ''}'),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.red),
-          onPressed: () => ds.deleteFeeding(r.id),
-        ),
-      ),
-    );
   }
 
   Color _typeColor(FeedingType type) {
@@ -191,5 +74,129 @@ class _FeedingScreenState extends State<FeedingScreen> {
 
   String _fmt(DateTime t) {
     return '${t.month}/${t.day} ${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
+    final ds = context.watch<DataService>();
+    final records = ds.feedingRecords.take(30).toList();
+
+    return Scaffold(
+      appBar: AppBar(title: Text(ls('feeding_record')), centerTitle: true),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: records.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) return _buildForm(l10n);
+          final r = records[index - 1];
+          return _buildRecordItem(r, ds, l10n);
+        },
+      ),
+    );
+  }
+
+  Widget _buildForm(L10nService l10n) {
+    String ls(String k) => l10n.t(k);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(ls('add_record'), style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            // 喂养方式
+            SegmentedButton<FeedingType>(
+              segments: [
+                ButtonSegment(value: FeedingType.breastDirect, label: Text(ls('breast_direct'))),
+                ButtonSegment(value: FeedingType.breastBottle, label: Text(ls('breast_bottle'))),
+                ButtonSegment(value: FeedingType.formula, label: Text(ls('formula'))),
+              ],
+              selected: {_selectedType},
+              onSelectionChanged: (s) => setState(() => _selectedType = s.first),
+            ),
+            const SizedBox(height: 16),
+
+            if (_selectedType == FeedingType.breastDirect) ...[
+              // 母乳亲喂 - 计时器
+              Row(children: [
+                Text(
+                  '${ls('duration')}: ${_breastSeconds ~/ 60}${ls('minutes')}${_breastSeconds % 60}${ls('seconds')}',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                if (_isTimerRunning)
+                  FilledButton.icon(
+                    onPressed: () => setState(() => _isTimerRunning = false),
+                    icon: const Icon(Icons.stop),
+                    label: Text(ls('stop_timer')),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: () => _startTimer(),
+                    icon: const Icon(Icons.play_arrow),
+                    label: Text(ls('start_timer')),
+                  ),
+              ]),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => setState(() { _breastSeconds = 0; _isTimerRunning = false; }),
+                child: Text(ls('reset')),
+              ),
+            ] else ...[
+              // 瓶喂/奶粉 - 输入量
+              TextField(
+                controller: _mlController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: ls('milk_amount_ml'),
+                  border: const OutlineInputBorder(),
+                  suffixText: 'ml',
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _noteController,
+              decoration: InputDecoration(
+                labelText: ls('note_optional'),
+                border: const OutlineInputBorder(),
+                hintText: ls('note_hint'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.check),
+                label: Text(ls('save_record')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecordItem(FeedingRecord r, DataService ds, L10nService l10n) {
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: _typeColor(r.type).withOpacity(0.15),
+          child: Icon(_typeIcon(r.type), color: _typeColor(r.type)),
+        ),
+        title: Text(r.typeName),
+        subtitle: Text('${_fmt(r.time)}  ${r.displayAmount}${r.note != null ? '  📝${r.note}' : ''}'),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red),
+          onPressed: () => ds.deleteFeeding(r.id),
+        ),
+      ),
+    );
   }
 }

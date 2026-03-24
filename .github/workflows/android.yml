@@ -57,8 +57,8 @@ jobs:
         with:
           files: build/app/outputs/flutter-apk/app-debug.apk
           tag_name: latest
-          name: Baby Tracker v1.0.0
-          body: "宝宝喂养记录 App — 自动构建版本"
+          name: Baby Tracker v2.0.0
+          body: "宝宝成长记录 v2.0.0 — 新增中英双语切换功能"
           overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

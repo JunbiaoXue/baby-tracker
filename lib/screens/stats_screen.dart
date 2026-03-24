@@ -2,24 +2,92 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
+  String _formatSleep(int minutes, L10nService l10n) {
+    if (minutes == 0) return '0${l10n.t('minutes')}';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    final hk = l10n.t('hours');
+    final mk = l10n.t('minutes');
+    return h > 0 ? '${h}$hk${m}$mk' : '${m}$mk';
+  }
+
+  List<Map> _getWeekData(DataService ds, String type, L10nService l10n) {
+    final now = DateTime.now();
+    final result = <Map>[];
+    final weekdays = [
+      l10n.t('mon'), l10n.t('tue'), l10n.t('wed'),
+      l10n.t('thu'), l10n.t('fri'), l10n.t('sat'), l10n.t('sun'),
+    ];
+
+    for (int i = 6; i >= 0; i--) {
+      final d = now.subtract(Duration(days: i));
+      int count = 0;
+      if (type == 'feeding') {
+        count = ds.feedingRecords.where((r) =>
+          r.time.year == d.year && r.time.month == d.month && r.time.day == d.day
+        ).length;
+      } else {
+        count = ds.diaperRecords.where((r) =>
+          r.time.year == d.year && r.time.month == d.month && r.time.day == d.day
+        ).length;
+      }
+      result.add({'label': weekdays[d.weekday % 7], 'count': count, 'date': d});
+    }
+    return result;
+  }
+
+  Widget _statCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
+                  Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = context.watch<DataService>();
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
     final stats = ds.todayStats();
-    final weekFeedings = _getWeekData(ds, 'feeding');
-    final weekDiapers = _getWeekData(ds, 'diaper');
+    final weekFeedings = _getWeekData(ds, 'feeding', l10n);
+    final weekDiapers = _getWeekData(ds, 'diaper', l10n);
+
+    final feedingCount = stats['feedingCount'] ?? 0;
+    final totalBottleMl = stats['totalBottleMl'] ?? 0;
+    final diaperCount = stats['diaperCount'] ?? 0;
+    final peeCount = stats['peeCount'] ?? 0;
+    final poopCount = stats['poopCount'] ?? 0;
+    final totalSleepMinutes = stats['totalSleepMinutes'] ?? 0;
+    final totalBreastMinutes = stats['totalBreastMinutes'] ?? 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('数据统计'), centerTitle: true),
+      appBar: AppBar(title: Text(ls('stats_title')), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // 今日概况
-          Text('今日概况', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(ls('today_overview'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Card(
             child: Padding(
@@ -28,22 +96,22 @@ class StatsScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      _statCard('喂奶次数', '${stats['feedingCount']}次', Icons.local_drink, Colors.blue),
-                      _statCard('总奶量', '${stats['totalBottleMl']}ml', Icons.water_drop, Colors.cyan),
+                      _statCard(ls('feeding_times'), '$feedingCount${ls('times2')}', Icons.local_drink, Colors.blue),
+                      _statCard(ls('total_milk'), '${totalBottleMl}ml', Icons.water_drop, Colors.cyan),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _statCard('换尿布', '${stats['diaperCount']}次', Icons.baby_changing_station, Colors.orange),
-                      _statCard('小便/大便', '${stats['peeCount']}/${stats['poopCount']}', Icons.show_chart, Colors.amber),
+                      _statCard(ls('diaper_count'), '$diaperCount${ls('times2')}', Icons.baby_changing_station, Colors.orange),
+                      _statCard(ls('diaper_detail'), '$peeCount/$poopCount', Icons.show_chart, Colors.amber),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _statCard('睡眠时长', _formatSleep(stats['totalSleepMinutes']), Icons.bedtime, Colors.purple),
-                      _statCard('母乳时长', '${stats['totalBreastMinutes']}分钟', Icons.child_care, Colors.pink),
+                      _statCard(ls('sleep_duration2'), _formatSleep(totalSleepMinutes, l10n), Icons.bedtime, Colors.purple),
+                      _statCard(ls('breast_duration'), '$totalBreastMinutes${ls('minutes')}', Icons.child_care, Colors.pink),
                     ],
                   ),
                 ],
@@ -53,7 +121,7 @@ class StatsScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // 近7天喂奶趋势
-          Text('近7天喂奶次数', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(ls('week_feeding_trend'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Card(
             child: Padding(
@@ -107,7 +175,7 @@ class StatsScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // 近7天换尿布趋势
-          Text('近7天换尿布次数', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(ls('week_diaper_trend'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Card(
             child: Padding(
@@ -161,57 +229,5 @@ class StatsScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Widget _statCard(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
-                  Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<Map> _getWeekData(DataService ds, String type) {
-    final now = DateTime.now();
-    final result = <Map>[];
-    final weekdays = ['周一','周二','周三','周四','周五','周六','周日'];
-
-    for (int i = 6; i >= 0; i--) {
-      final d = now.subtract(Duration(days: i));
-      int count = 0;
-      if (type == 'feeding') {
-        count = ds.feedingRecords.where((r) =>
-          r.time.year == d.year && r.time.month == d.month && r.time.day == d.day
-        ).length;
-      } else {
-        count = ds.diaperRecords.where((r) =>
-          r.time.year == d.year && r.time.month == d.month && r.time.day == d.day
-        ).length;
-      }
-      result.add({'label': weekdays[d.weekday % 7], 'count': count, 'date': d});
-    }
-    return result;
-  }
-
-  String _formatSleep(int minutes) {
-    if (minutes == 0) return '0分钟';
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    return h > 0 ? '${h}h${m}m' : '${m}分钟';
   }
 }

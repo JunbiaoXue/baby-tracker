@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/growth_record.dart';
 import '../services/data_service.dart';
+import '../services/l10n_service.dart';
 
 class GrowthScreen extends StatefulWidget {
   const GrowthScreen({super.key});
@@ -25,6 +26,8 @@ class _GrowthScreenState extends State<GrowthScreen> {
     super.dispose();
   }
 
+  String _ls(String key) => context.read<L10nService>().t(key);
+
   Future<void> _save() async {
     final ds = context.read<DataService>();
     await ds.addGrowth(GrowthRecord(
@@ -40,23 +43,25 @@ class _GrowthScreenState extends State<GrowthScreen> {
     _noteController.clear();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已保存！'), duration: Duration(seconds: 1)),
+        SnackBar(content: Text(_ls('saved')), duration: const Duration(seconds: 1)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.watch<L10nService>();
+    String ls(String k) => l10n.t(k);
     final ds = context.watch<DataService>();
     final records = ds.growthRecords.take(20).toList();
     final latest = records.isNotEmpty ? records.first : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('身高体重记录'), centerTitle: true),
+      appBar: AppBar(title: Text(ls('growth_record')), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (latest != null) _buildLatestCard(latest),
+          if (latest != null) _buildLatestCard(latest, l10n),
           const SizedBox(height: 12),
           Card(
             child: Padding(
@@ -64,21 +69,21 @@ class _GrowthScreenState extends State<GrowthScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('新增记录', style: Theme.of(context).textTheme.titleMedium),
+                  Text(ls('add_record'), style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 16),
                   Row(children: [
-                    Expanded(child: _buildField('体重 (kg)', _weightController)),
+                    Expanded(child: _buildField(ls('weight_kg'), _weightController)),
                     const SizedBox(width: 12),
-                    Expanded(child: _buildField('身长 (cm)', _heightController)),
+                    Expanded(child: _buildField(ls('height_cm'), _heightController)),
                   ]),
                   const SizedBox(height: 12),
-                  _buildField('头围 (cm)', _headController),
+                  _buildField(ls('head_cm'), _headController),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _noteController,
-                    decoration: const InputDecoration(
-                      labelText: '备注 (可选)',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: ls('note_optional'),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -87,7 +92,7 @@ class _GrowthScreenState extends State<GrowthScreen> {
                     child: FilledButton.icon(
                       onPressed: _save,
                       icon: const Icon(Icons.check),
-                      label: const Text('保存记录'),
+                      label: Text(ls('save_record')),
                     ),
                   ),
                 ],
@@ -95,7 +100,7 @@ class _GrowthScreenState extends State<GrowthScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text('历史记录', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(ls('history_records'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 8),
           ...records.map((r) => Card(
             child: ListTile(
@@ -105,9 +110,9 @@ class _GrowthScreenState extends State<GrowthScreen> {
               ),
               title: Text('${r.date.month}/${r.date.day}'),
               subtitle: Text([
-                if (r.weightKg != null) '体重: ${r.weightKg}kg',
-                if (r.heightCm != null) '身长: ${r.heightCm}cm',
-                if (r.headCircumferenceCm != null) '头围: ${r.headCircumferenceCm}cm',
+                if (r.weightKg != null) '${ls('weight')}: ${r.weightKg}kg',
+                if (r.heightCm != null) '${ls('height')}: ${r.heightCm}cm',
+                if (r.headCircumferenceCm != null) '${ls('head')}: ${r.headCircumferenceCm}cm',
               ].join('  ')),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -120,7 +125,8 @@ class _GrowthScreenState extends State<GrowthScreen> {
     );
   }
 
-  Widget _buildLatestCard(GrowthRecord r) {
+  Widget _buildLatestCard(GrowthRecord r, L10nService l10n) {
+    String ls(String k) => l10n.t(k);
     return Card(
       color: Colors.teal.shade50,
       child: Padding(
@@ -131,16 +137,16 @@ class _GrowthScreenState extends State<GrowthScreen> {
             Row(children: [
               const Icon(Icons.straighten, color: Colors.teal),
               const SizedBox(width: 8),
-              const Text('最新记录', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(ls('latest_record'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const Spacer(),
               Text('${r.date.month}/${r.date.day}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ]),
             const SizedBox(height: 12),
             Row(
               children: [
-                if (r.weightKg != null) _latestItem('体重', '${r.weightKg}', 'kg', Colors.blue),
-                if (r.heightCm != null) _latestItem('身长', '${r.heightCm}', 'cm', Colors.green),
-                if (r.headCircumferenceCm != null) _latestItem('头围', '${r.headCircumferenceCm}', 'cm', Colors.orange),
+                if (r.weightKg != null) _latestItem(ls('weight'), '${r.weightKg}', 'kg', Colors.blue),
+                if (r.heightCm != null) _latestItem(ls('height'), '${r.heightCm}', 'cm', Colors.green),
+                if (r.headCircumferenceCm != null) _latestItem(ls('head'), '${r.headCircumferenceCm}', 'cm', Colors.orange),
               ],
             ),
           ],
@@ -164,10 +170,7 @@ class _GrowthScreenState extends State<GrowthScreen> {
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
     );
   }
 }
