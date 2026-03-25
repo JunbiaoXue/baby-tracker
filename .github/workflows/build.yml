@@ -1,0 +1,91 @@
+name: Build and Release APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep "version:" pubspec.yaml | sed 's/version: //')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          DATE=$(date +'%Y%m%d')
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+
+      - name: Generate Android project structure
+        run: |
+          rm -rf android
+          mkdir -p assets
+          mv pubspec.yaml pubspec.yaml.bak
+          mv lib lib.bak
+          flutter create --platforms android --org com.babytracker baby_tracker_temp
+          mv baby_tracker_temp/android .
+          rm -rf baby_tracker_temp
+          mv lib.bak lib
+          mv pubspec.yaml.bak pubspec.yaml
+          rm -f pubspec.lock
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: baby-tracker-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 5
+
+      - name: Download APK
+        if: github.event_name != 'pull_request'
+        uses: actions/download-artifact@v4
+        with:
+          name: baby-tracker-apk
+          path: ./apk/
+
+      - name: Create Release
+        if: github.event_name != 'pull_request'
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Baby Tracker v${{ steps.version.outputs.version }}
+          body: |
+            ## 🍼 宝宝成长记录 v${{ steps.version.outputs.version }}
+
+            ### 功能更新
+            - ✅ 优化应用性能
+            - ✅ 修复已知问题
+
+            ### 安装说明
+            1. 下载下方 APK 文件
+            2. 开启"允许安装未知来源应用"
+            3. 点击 APK 安装
+          files: ./apk/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
