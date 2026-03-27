@@ -55,6 +55,11 @@ class L10nService extends ChangeNotifier {
     'stop_timer': '停止计时',
     'reset': '重置',
     'seconds': '秒',
+    'breast_side': '喂养侧别',
+    'left_side': '左侧',
+    'right_side': '右侧',
+    'switch_side': '换边',
+    'completed_15min': '已完成 15 分钟',
 
     // Diaper screen
     'diaper_record': '换尿布记录',
@@ -219,6 +224,11 @@ class L10nService extends ChangeNotifier {
     'stop_timer': 'Stop Timer',
     'reset': 'Reset',
     'seconds': 's',
+    'breast_side': 'Side',
+    'left_side': 'Left',
+    'right_side': 'Right',
+    'switch_side': 'Switch',
+    'completed_15min': '15 min completed',
 
     // Diaper screen
     'diaper_record': 'Diaper Record',

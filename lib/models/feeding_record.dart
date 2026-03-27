@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 enum FeedingType { breastDirect, breastBottle, formula }
+enum BreastSide { left, right }
 
 class FeedingRecord {
   final String id;
@@ -9,6 +10,7 @@ class FeedingRecord {
   final int? breastMinutes; // 母乳亲喂时长（分钟）
   final int? bottleMl;      // 瓶喂 ml
   final String? note;
+  final BreastSide? breastSide; // 母乳喂养侧别
 
   FeedingRecord({
     String? id,
@@ -17,6 +19,7 @@ class FeedingRecord {
     this.breastMinutes,
     this.bottleMl,
     this.note,
+    this.breastSide,
   }) : id = id ?? const Uuid().v4();
 
   Map<String, dynamic> toJson() => {
@@ -26,6 +29,7 @@ class FeedingRecord {
     'breastMinutes': breastMinutes,
     'bottleMl': bottleMl,
     'note': note,
+    'breastSide': breastSide?.index,
   };
 
   factory FeedingRecord.fromJson(Map<String, dynamic> json) => FeedingRecord(
@@ -35,6 +39,7 @@ class FeedingRecord {
     breastMinutes: json['breastMinutes'],
     bottleMl: json['bottleMl'],
     note: json['note'],
+    breastSide: json['breastSide'] != null ? BreastSide.values[json['breastSide']] : null,
   );
 
   String get typeName {
