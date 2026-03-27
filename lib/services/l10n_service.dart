@@ -186,6 +186,19 @@ class L10nService extends ChangeNotifier {
     // Age display
     'months': '个月',
     'years': '岁',
+
+    // Stats new fields
+    'weekly_frequency': '本周频次',
+    'avg_per_day': '日均',
+    'total_this_week': '本周总计',
+    'feeding_interval': '喂奶间隔',
+    'diaper_interval': '换尿布间隔',
+    'avg_interval': '平均',
+    'min_interval': '最短',
+    'max_interval': '最长',
+    'recent_intervals': '最近间隔',
+    'merged_events': '合并事件',
+    'merge_hint': '10分钟内相近事件',
   };
 
   static const Map<String, String> _en = {
@@ -358,6 +371,19 @@ class L10nService extends ChangeNotifier {
     // Age display
     'months': 'mo',
     'years': 'yr',
+
+    // Stats new fields
+    'weekly_frequency': 'Weekly Frequency',
+    'avg_per_day': 'Daily Avg',
+    'total_this_week': 'This Week',
+    'feeding_interval': 'Feeding Interval',
+    'diaper_interval': 'Diaper Interval',
+    'avg_interval': 'Avg',
+    'min_interval': 'Min',
+    'max_interval': 'Max',
+    'recent_intervals': 'Recent Intervals',
+    'merged_events': 'Merged Events',
+    'merge_hint': 'Events within 10 min',
   };
 
   // ─────────────────────────────────────────────

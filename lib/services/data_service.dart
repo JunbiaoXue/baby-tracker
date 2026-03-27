@@ -186,4 +186,79 @@ class DataService extends ChangeNotifier {
       'totalSleepMinutes': totalSleepMinutes,
     };
   }
+
+  // 合并时间相近的记录（10分钟内视为一组）
+  List<Map<String, dynamic>> getMergedRecords() {
+    final allRecords = <Map<String, dynamic>>[];
+    for (final f in _feedingRecords) {
+      allRecords.add({'time': f.time, 'type': 'feeding', 'record': f});
+    }
+    for (final d in _diaperRecords) {
+      allRecords.add({'time': d.time, 'type': 'diaper', 'record': d});
+    }
+    allRecords.sort((a, b) => (a['time'] as DateTime).compareTo(b['time'] as DateTime));
+    
+    final merged = <Map<String, dynamic>>[];
+    for (final item in allRecords) {
+      if (merged.isEmpty) {
+        merged.add(item);
+      } else {
+        final last = merged.last;
+        final diff = (item['time'] as DateTime).difference(last['time'] as DateTime).inMinutes;
+        if (diff <= 10) {
+          if (last['events'] == null) last['events'] = [last];
+          (last['events'] as List).add(item);
+        } else {
+          merged.add(item);
+        }
+      }
+    }
+    return merged;
+  }
+
+  // 间隔时间统计
+  List<Map<String, dynamic>> getIntervals(String type) {
+    final records = type == 'feeding' ? _feedingRecords : _diaperRecords;
+    if (records.length < 2) return [];
+    final times = records.map((r) => r.time).toList()..sort();
+    return [
+      for (int i = 1; i < times.length; i++)
+        {'from': times[i-1], 'to': times[i], 'minutes': times[i].difference(times[i-1]).inMinutes}
+    ];
+  }
+
+  // 每周每日频次统计
+  Map<String, dynamic> getFrequencyStats() {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final dailyStats = <String, Map<String, int>>{};
+    for (int i = 0; i < 7; i++) {
+      final d = weekStart.add(Duration(days: i));
+      dailyStats['${d.month}/${d.day}'] = {'feeding': 0, 'diaper': 0};
+    }
+    for (final f in _feedingRecords) {
+      if (f.time.isAfter(weekStart)) {
+        final key = '${f.time.month}/${f.time.day}';
+        if (dailyStats.containsKey(key)) dailyStats[key]!['feeding']++;
+      }
+    }
+    for (final d in _diaperRecords) {
+      if (d.time.isAfter(weekStart)) {
+        final key = '${d.time.month}/${d.time.day}';
+        if (dailyStats.containsKey(key)) dailyStats[key]!['diaper']++;
+      }
+    }
+    int totalFeeding = 0, totalDiaper = 0;
+    for (final stat in dailyStats.values) {
+      totalFeeding += stat['feeding']!;
+      totalDiaper += stat['diaper']!;
+    }
+    return {
+      'dailyStats': dailyStats,
+      'avgFeedingPerDay': (totalFeeding / 7).toStringAsFixed(1),
+      'avgDiaperPerDay': (totalDiaper / 7).toStringAsFixed(1),
+      'totalFeeding': totalFeeding,
+      'totalDiaper': totalDiaper,
+    };
+  }
 }
