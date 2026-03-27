@@ -246,15 +246,23 @@ class DataService extends ChangeNotifier {
     final records = type == 'feeding' ? _feedingRecords : _diaperRecords;
     if (records.length < 2) return [];
     
-    final sorted = List<FeedingRecord>.from(records)
-      ..sort((a, b) => a.time.compareTo(b.time));
+    // 获取时间列表并排序
+    final times = <DateTime>[];
+    for (final r in records) {
+      if (r is FeedingRecord) {
+        times.add(r.time);
+      } else if (r is DiaperRecord) {
+        times.add(r.time);
+      }
+    }
+    times.sort((a, b) => a.compareTo(b));
     
     final intervals = <Map<String, dynamic>>[];
-    for (int i = 1; i < sorted.length; i++) {
-      final diff = sorted[i].time.difference(sorted[i-1].time).inMinutes;
+    for (int i = 1; i < times.length; i++) {
+      final diff = times[i].difference(times[i-1]).inMinutes;
       intervals.add({
-        'from': sorted[i-1].time,
-        'to': sorted[i].time,
+        'from': times[i-1],
+        'to': times[i],
         'minutes': diff,
       });
     }
