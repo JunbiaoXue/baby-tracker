@@ -218,11 +218,11 @@ class DataService extends ChangeNotifier {
 
   // 间隔时间统计
   List<Map<String, dynamic>> getIntervals(String type) {
-    final List<FeedingRecord> feedingList = _feedingRecords;
-    final List<DiaperRecord> diaperList = _diaperRecords;
-    final records = type == 'feeding' ? feedingList : diaperList;
+    final records = type == 'feeding' 
+        ? _feedingRecords.cast<dynamic>() 
+        : _diaperRecords.cast<dynamic>();
     if (records.length < 2) return [];
-    final times = records.map((r) => r.time).toList()..sort();
+    final times = records.map((r) => r.time as DateTime).toList()..sort();
     return [
       for (int i = 1; i < times.length; i++)
         {'from': times[i-1], 'to': times[i], 'minutes': times[i].difference(times[i-1]).inMinutes}
