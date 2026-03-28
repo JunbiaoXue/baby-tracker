@@ -15,6 +15,7 @@ class _DiaperScreenState extends State<DiaperScreen> {
   DiaperType _selectedType = DiaperType.pee;
   String? _poopColor;
   final _noteController = TextEditingController();
+  DateTime _recordTime = DateTime.now(); // 允许选择历史时间
 
   // Poop colors with bilingual labels
   final List<Map<String, String>> _poopColors = [
@@ -38,7 +39,7 @@ class _DiaperScreenState extends State<DiaperScreen> {
   Future<void> _save() async {
     final ds = context.read<DataService>();
     final record = DiaperRecord(
-      time: DateTime.now(),
+      time: _recordTime,
       type: _selectedType,
       poopColor: (_selectedType == DiaperType.poop || _selectedType == DiaperType.both) ? _poopColor : null,
       note: _noteController.text.isEmpty ? null : _noteController.text,
@@ -81,7 +82,38 @@ class _DiaperScreenState extends State<DiaperScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(ls('add_record'), style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(ls('add_record'), style: Theme.of(context).textTheme.titleMedium),
+                TextButton.icon(
+                  icon: const Icon(Icons.access_time, size: 18),
+                  label: Text('${_recordTime.month}/${_recordTime.day} ${_recordTime.hour.toString().padLeft(2,'0')}:${_recordTime.minute.toString().padLeft(2,'0')}'),
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _recordTime,
+                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null && mounted) {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(_recordTime),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          _recordTime = DateTime(
+                            date.year, date.month, date.day,
+                            time.hour, time.minute,
+                          );
+                        });
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             SegmentedButton<DiaperType>(
               segments: [

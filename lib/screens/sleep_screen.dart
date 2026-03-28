@@ -14,6 +14,7 @@ class SleepScreen extends StatefulWidget {
 class _SleepScreenState extends State<SleepScreen> {
   bool _isOngoing = false;
   DateTime? _startTime;
+  DateTime _recordStartTime = DateTime.now(); // 允许选择历史时间
   SleepQuality _quality = SleepQuality.good;
 
   @override
@@ -31,7 +32,7 @@ class _SleepScreenState extends State<SleepScreen> {
 
   Future<void> _startSleep() async {
     final ds = context.read<DataService>();
-    final record = SleepRecord(startTime: DateTime.now());
+    final record = SleepRecord(startTime: _recordStartTime);
     await ds.addSleep(record);
     setState(() {
       _isOngoing = true;
@@ -108,6 +109,35 @@ class _SleepScreenState extends State<SleepScreen> {
                           '${ls('has_slept')} ${duration.inHours}${hk}${duration.inMinutes % 60}$mk',
                           style: TextStyle(fontSize: 16, color: Colors.purple.shade600),
                         );
+                      },
+                    ),
+                  ],
+                  if (!_isOngoing) ...[
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      icon: const Icon(Icons.access_time, size: 18),
+                      label: Text('${_recordStartTime.month}/${_recordStartTime.day} ${_recordStartTime.hour.toString().padLeft(2,'0')}:${_recordStartTime.minute.toString().padLeft(2,'0')}'),
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _recordStartTime,
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null && mounted) {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(_recordStartTime),
+                          );
+                          if (time != null) {
+                            setState(() {
+                              _recordStartTime = DateTime(
+                                date.year, date.month, date.day,
+                                time.hour, time.minute,
+                              );
+                            });
+                          }
+                        }
                       },
                     ),
                   ],
