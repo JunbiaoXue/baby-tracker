@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/feeding_record.dart';
 import '../models/diaper_record.dart';
 import '../models/supplement_record.dart';
@@ -7,6 +11,8 @@ import '../models/growth_record.dart';
 import '../models/milestone_record.dart';
 
 class DataService extends ChangeNotifier {
+  static const String _storageKey = 'baby_tracker_data_v1';
+
   List<FeedingRecord> _feedingRecords = [];
   List<DiaperRecord> _diaperRecords = [];
   List<SupplementRecord> _supplementRecords = [];
@@ -26,26 +32,106 @@ class DataService extends ChangeNotifier {
   DateTime? get babyBirthday => _babyBirthday;
 
   Future<void> init() async {
-    // No persistence - using in-memory storage
-    // Data will reset when app restarts
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_storageKey);
+
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          _babyName = decoded['babyName'] as String? ?? '宝宝';
+
+          final birthday = decoded['babyBirthday'];
+          if (birthday is String && birthday.isNotEmpty) {
+            _babyBirthday = DateTime.tryParse(birthday);
+          }
+
+          _feedingRecords = _decodeList(
+            decoded['feedingRecords'],
+            FeedingRecord.fromJson,
+          );
+          _diaperRecords = _decodeList(
+            decoded['diaperRecords'],
+            DiaperRecord.fromJson,
+          );
+          _supplementRecords = _decodeList(
+            decoded['supplementRecords'],
+            SupplementRecord.fromJson,
+          );
+          _sleepRecords = _decodeList(
+            decoded['sleepRecords'],
+            SleepRecord.fromJson,
+          );
+          _growthRecords = _decodeList(
+            decoded['growthRecords'],
+            GrowthRecord.fromJson,
+          );
+          _milestoneRecords = _decodeList(
+            decoded['milestoneRecords'],
+            MilestoneRecord.fromJson,
+          );
+        }
+      } catch (e, stackTrace) {
+        debugPrint('Failed to restore persisted baby tracker data: $e');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    }
+
     notifyListeners();
+  }
+
+  List<T> _decodeList<T>(
+    dynamic value,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    if (value is! List) return <T>[];
+
+    final result = <T>[];
+    for (final item in value) {
+      if (item is! Map) continue;
+      try {
+        result.add(fromJson(Map<String, dynamic>.from(item)));
+      } catch (e) {
+        debugPrint('Skipping invalid persisted record: $e');
+      }
+    }
+    return result;
+  }
+
+  Future<void> _persist() async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = <String, dynamic>{
+      'version': 1,
+      'babyName': _babyName,
+      'babyBirthday': _babyBirthday?.toIso8601String(),
+      'feedingRecords': _feedingRecords.map((r) => r.toJson()).toList(),
+      'diaperRecords': _diaperRecords.map((r) => r.toJson()).toList(),
+      'supplementRecords': _supplementRecords.map((r) => r.toJson()).toList(),
+      'sleepRecords': _sleepRecords.map((r) => r.toJson()).toList(),
+      'growthRecords': _growthRecords.map((r) => r.toJson()).toList(),
+      'milestoneRecords': _milestoneRecords.map((r) => r.toJson()).toList(),
+    };
+    await prefs.setString(_storageKey, jsonEncode(payload));
   }
 
   // ---- 宝宝信息 ----
   Future<void> setBabyInfo(String name, DateTime birthday) async {
     _babyName = name;
     _babyBirthday = birthday;
+    await _persist();
     notifyListeners();
   }
 
   // ---- 喂奶 ----
   Future<void> addFeeding(FeedingRecord record) async {
     _feedingRecords.insert(0, record);
+    await _persist();
     notifyListeners();
   }
 
   Future<void> deleteFeeding(String id) async {
     _feedingRecords.removeWhere((r) => r.id == id);
+    await _persist();
     notifyListeners();
   }
 
@@ -59,11 +145,13 @@ class DataService extends ChangeNotifier {
   // ---- 尿布 ----
   Future<void> addDiaper(DiaperRecord record) async {
     _diaperRecords.insert(0, record);
+    await _persist();
     notifyListeners();
   }
 
   Future<void> deleteDiaper(String id) async {
     _diaperRecords.removeWhere((r) => r.id == id);
+    await _persist();
     notifyListeners();
   }
 
@@ -84,6 +172,7 @@ class DataService extends ChangeNotifier {
     } else {
       _supplementRecords.insert(0, record);
     }
+    await _persist();
     notifyListeners();
   }
 
@@ -101,6 +190,7 @@ class DataService extends ChangeNotifier {
   // ---- 睡眠 ----
   Future<void> addSleep(SleepRecord record) async {
     _sleepRecords.insert(0, record);
+    await _persist();
     notifyListeners();
   }
 
@@ -108,12 +198,14 @@ class DataService extends ChangeNotifier {
     final idx = _sleepRecords.indexWhere((r) => r.id == record.id);
     if (idx >= 0) {
       _sleepRecords[idx] = record;
+      await _persist();
       notifyListeners();
     }
   }
 
   Future<void> deleteSleep(String id) async {
     _sleepRecords.removeWhere((r) => r.id == id);
+    await _persist();
     notifyListeners();
   }
 
@@ -128,22 +220,26 @@ class DataService extends ChangeNotifier {
   // ---- 生长发育 ----
   Future<void> addGrowth(GrowthRecord record) async {
     _growthRecords.insert(0, record);
+    await _persist();
     notifyListeners();
   }
 
   Future<void> deleteGrowth(String id) async {
     _growthRecords.removeWhere((r) => r.id == id);
+    await _persist();
     notifyListeners();
   }
 
   // ---- 里程碑 ----
   Future<void> addMilestone(MilestoneRecord record) async {
     _milestoneRecords.insert(0, record);
+    await _persist();
     notifyListeners();
   }
 
   Future<void> deleteMilestone(String id) async {
     _milestoneRecords.removeWhere((r) => r.id == id);
+    await _persist();
     notifyListeners();
   }
 
@@ -199,7 +295,7 @@ class DataService extends ChangeNotifier {
     for (final d in _diaperRecords) {
       diaperRecords.add({'time': d.time, 'type': 'diaper', 'record': d});
     }
-    
+
     // 合并同类记录
     List<Map<String, dynamic>> mergeGroup(List<Map<String, dynamic>> records) {
       if (records.isEmpty) return [];
@@ -220,10 +316,10 @@ class DataService extends ChangeNotifier {
       }
       return merged;
     }
-    
+
     final mergedFeeding = mergeGroup(feedingRecords);
     final mergedDiaper = mergeGroup(diaperRecords);
-    
+
     // 合并两组并按时间排序
     final allMerged = [...mergedFeeding, ...mergedDiaper];
     allMerged.sort((a, b) => (a['time'] as DateTime).compareTo(b['time'] as DateTime));
@@ -232,8 +328,8 @@ class DataService extends ChangeNotifier {
 
   // 间隔时间统计
   List<Map<String, dynamic>> getIntervals(String type) {
-    final records = type == 'feeding' 
-        ? _feedingRecords.cast<dynamic>() 
+    final records = type == 'feeding'
+        ? _feedingRecords.cast<dynamic>()
         : _diaperRecords.cast<dynamic>();
     if (records.length < 2) return [];
     final times = records.map((r) => r.time as DateTime).toList()..sort();
